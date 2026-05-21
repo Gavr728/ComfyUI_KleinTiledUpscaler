@@ -1,0 +1,43 @@
+KLEIN TILED UPSCALER - NON-COMMERCIAL LICENSE
+Version 1.0.0, May 2026
+
+Copyright (c) 2026, [Your Name / GitHub Username]
+All rights reserved.
+
+1. GRANT OF LICENSE
+Subject to the terms of this License, the Copyright Holder hereby grants you a 
+non-exclusive, non-transferable, royalty-free license to use, study, copy, 
+and modify this software solely for non-commercial, personal, educational, 
+research, or hobbyist purposes.
+
+2. COMMERCIAL RESTRICTIONS & PERMISSION
+Any use, reproduction, redistribution, or deployment of this software (including 
+modified versions thereof) for commercial purposes is strictly prohibited without 
+prior written permission from the Copyright Holder. 
+
+"Commercial purposes" includes, but is not limited to:
+a) Incorporating the software into products, software, or services sold or leased.
+b) Running the software to generate outputs (images, frames, etc.) as part of 
+   paid work, contract work, or commercial services.
+c) Hosting the software on public or private commercial APIs, SaaS platforms, 
+   cloud platforms, or automated generation servers.
+d) Distributing the software bundled with commercial offerings.
+
+To request commercial licensing or permission, contact: [Your Contact Email / GitHub Link]
+
+3. ATTRIBUTION
+All copies or substantial portions of the Software, including modified versions, 
+must retain the original copyright notice, this list of conditions, and the 
+following disclaimer.
+
+4. DISCLAIMER OF WARRANTY
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED 
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. 
+IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, 
+INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, 
+BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, 
+DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF 
+LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE 
+OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF 
+ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
