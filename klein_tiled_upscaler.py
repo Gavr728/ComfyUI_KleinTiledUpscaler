@@ -186,8 +186,9 @@ def patch_conditioning(cond, ref_crop):
     return new_cond
 
 def crop_latent_for_tile(full_latent, crop_region, canvas_w):
-    ratio = canvas_w / float(full_latent.shape[3])
-    divisor = 16 if ratio > 12.0 else 8
+    # Flux2/Klein uses a fixed VAE spatial compression of 16px per latent token.
+    # Hardcoded to 16 to avoid shape mismatch issues during upscale [1.1].
+    divisor = 16
     
     x1, y1, x2, y2 = crop_region
     rx1 = max(0, x1 // divisor)
@@ -209,8 +210,9 @@ def crop_noise_for_tile(global_noise, crop_region, canvas_w):
     This ensures all tiles have statistically identical noise despite coming from
     different positions in the global noise map — preventing texture unevenness.
     """
-    ratio = canvas_w / float(global_noise.shape[3])
-    divisor = 16 if ratio > 12.0 else 8
+    # Flux2/Klein uses a fixed VAE spatial compression of 16px per latent token.
+    # Hardcoded to 16 to avoid shape mismatch issues during upscale [1.1].
+    divisor = 16
 
     x1, y1, x2, y2 = crop_region
     rx1 = x1 // divisor
@@ -219,6 +221,12 @@ def crop_noise_for_tile(global_noise, crop_region, canvas_w):
     ry2 = y2 // divisor
 
     tile_noise = global_noise[:, :, ry1:ry2, rx1:rx2].clone()
+
+    # Safely match dimensions in case of any VAE rounding or divisor differences [1.1]
+    enc_w = max(1, (x2 - x1) // divisor)
+    enc_h = max(1, (y2 - y1) // divisor)
+    if tile_noise.shape[2] != enc_h or tile_noise.shape[3] != enc_w:
+        tile_noise = F.interpolate(tile_noise.float(), size=(enc_h, enc_w), mode='bilinear', align_corners=False).to(global_noise.dtype)
 
     # Normalize: zero mean, unit variance per tile
     mean = tile_noise.mean()
