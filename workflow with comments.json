@@ -1,0 +1,992 @@
+{
+  "id": "ef5ed1ef-8aea-4e25-a951-a839006006dc",
+  "revision": 0,
+  "last_node_id": 188,
+  "last_link_id": 421,
+  "nodes": [
+    {
+      "id": 140,
+      "type": "Image Comparer (rgthree)",
+      "pos": [
+        3220,
+        470
+      ],
+      "size": [
+        671.6566607561481,
+        713.4001871039782
+      ],
+      "flags": {},
+      "order": 17,
+      "mode": 0,
+      "inputs": [
+        {
+          "dir": 3,
+          "name": "image_a",
+          "type": "IMAGE",
+          "link": 420
+        },
+        {
+          "dir": 3,
+          "name": "image_b",
+          "type": "IMAGE",
+          "link": 421
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "comparer_mode": "Slide",
+        "cnr_id": "rgthree-comfy",
+        "ver": "683836c46e898668936c433502504cc0627482c5",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.8"
+        }
+      },
+      "widgets_values": [
+        [
+          {
+            "name": "A",
+            "selected": true,
+            "url": "/api/view?filename=rgthree.compare._temp_daers_00001_.png&type=temp&subfolder=&rand=0.649313086623186"
+          },
+          {
+            "name": "B",
+            "selected": true,
+            "url": "/api/view?filename=rgthree.compare._temp_daers_00002_.png&type=temp&subfolder=&rand=0.3598338735414608"
+          }
+        ]
+      ]
+    },
+    {
+      "id": 113,
+      "type": "ConditioningZeroOut",
+      "pos": [
+        2118.2378501406984,
+        1382.4980476297005
+      ],
+      "size": [
+        210,
+        30
+      ],
+      "flags": {},
+      "order": 13,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "conditioning",
+          "type": "CONDITIONING",
+          "link": 305
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            319,
+            412
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ConditioningZeroOut",
+        "cnr_id": "comfy-core",
+        "ver": "0.8.2",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.5.2",
+          "input_ue_unconnectable": {}
+        },
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 1,
+      "type": "LoadImage",
+      "pos": [
+        1798.8207612706474,
+        665.7610284616503
+      ],
+      "size": [
+        230,
+        330
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "slot_index": 0,
+          "links": [
+            417,
+            421
+          ]
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": null
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage",
+        "cnr_id": "comfy-core",
+        "ver": "0.3.27",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.5.2",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "kleintrue_00049_.png",
+        "image"
+      ],
+      "shape": 1
+    },
+    {
+      "id": 119,
+      "type": "VAELoader",
+      "pos": [
+        1087.0798373619982,
+        667.9240673786007
+      ],
+      "size": [
+        510,
+        60
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            416
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAELoader",
+        "cnr_id": "comfy-core",
+        "ver": "0.17.0",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.5.2",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "flux2-vae.safetensors"
+      ]
+    },
+    {
+      "id": 139,
+      "type": "UnetLoaderGGUF",
+      "pos": [
+        1090.342818193948,
+        826.6130679594507
+      ],
+      "size": [
+        510,
+        80
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            226
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "UnetLoaderGGUF",
+        "cnr_id": "comfyui-gguf",
+        "ver": "1.1.10",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.8"
+        }
+      },
+      "widgets_values": [
+        "flux-2-klein-9b-Q8_0.gguf"
+      ]
+    },
+    {
+      "id": 127,
+      "type": "LoraLoaderModelOnly",
+      "pos": [
+        1088.208814708848,
+        978.929093516851
+      ],
+      "size": [
+        510,
+        90
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 4,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 226
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            358
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoraLoaderModelOnly",
+        "cnr_id": "comfy-core",
+        "ver": "0.20.1",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.5.2"
+        }
+      },
+      "widgets_values": [
+        "flux klein 9b\\Flux2-Klein-9B-consistency-V2.safetensors",
+        0.3
+      ]
+    },
+    {
+      "id": 114,
+      "type": "CLIPTextEncode",
+      "pos": [
+        1673.1178036726978,
+        1104.5371353380515
+      ],
+      "size": [
+        460,
+        160
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "clip",
+          "type": "CLIP",
+          "link": 196
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "slot_index": 0,
+          "links": [
+            305,
+            351,
+            411
+          ]
+        }
+      ],
+      "title": "CLIP Text Encode (Positive Prompt)",
+      "properties": {
+        "Node name for S&R": "CLIPTextEncode",
+        "cnr_id": "comfy-core",
+        "ver": "0.8.2",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.5.2",
+          "input_ue_unconnectable": {}
+        },
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "upscale image"
+      ],
+      "color": "#232",
+      "bgcolor": "#353"
+    },
+    {
+      "id": 122,
+      "type": "CLIPLoader",
+      "pos": [
+        1066.2477918530003,
+        1163.313831410722
+      ],
+      "size": [
+        510,
+        120
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "CLIP",
+          "type": "CLIP",
+          "links": [
+            196
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CLIPLoader",
+        "cnr_id": "comfy-core",
+        "ver": "0.8.2",
+        "models": [
+          {
+            "name": "qwen_3_8b_fp8mixed.safetensors",
+            "url": "https://huggingface.co/Comfy-Org/flux2-klein-9B/resolve/main/split_files/text_encoders/qwen_3_8b_fp8mixed.safetensors",
+            "directory": "text_encoders"
+          }
+        ],
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.5.2",
+          "input_ue_unconnectable": {}
+        },
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        "qwen_3_8b_fp8mixed.safetensors",
+        "flux2",
+        "default"
+      ]
+    },
+    {
+      "id": 169,
+      "type": "CFGGuider",
+      "pos": [
+        2452.389183810485,
+        706.1578085516563
+      ],
+      "size": [
+        270,
+        110
+      ],
+      "flags": {},
+      "order": 14,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 358
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 351
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 319
+        }
+      ],
+      "outputs": [
+        {
+          "name": "GUIDER",
+          "type": "GUIDER",
+          "links": [
+            410
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "CFGGuider",
+        "cnr_id": "comfy-core",
+        "ver": "0.8.2",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.5.2",
+          "input_ue_unconnectable": {}
+        },
+        "enableTabs": false,
+        "tabWidth": 65,
+        "tabXOffset": 10,
+        "hasSecondTab": false,
+        "secondTabText": "Send Back",
+        "secondTabOffset": 80,
+        "secondTabWidth": 65
+      },
+      "widgets_values": [
+        1
+      ]
+    },
+    {
+      "id": 110,
+      "type": "KSamplerSelect",
+      "pos": [
+        2443.8246181724885,
+        900.7549420048678
+      ],
+      "size": [
+        270,
+        60
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "SAMPLER",
+          "type": "SAMPLER",
+          "links": [
+            413
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KSamplerSelect",
+        "cnr_id": "comfy-core",
+        "ver": "0.17.0",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.5.2",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "euler"
+      ]
+    },
+    {
+      "id": 6,
+      "type": "UpscaleModelLoader",
+      "pos": [
+        2443.9182851136757,
+        1029.9538851715085
+      ],
+      "size": [
+        270,
+        60
+      ],
+      "flags": {
+        "collapsed": false
+      },
+      "order": 5,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "UPSCALE_MODEL",
+          "type": "UPSCALE_MODEL",
+          "slot_index": 0,
+          "links": [
+            414
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "UpscaleModelLoader",
+        "cnr_id": "comfy-core",
+        "ver": "0.3.27",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.5.2",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "4x_NMKD-Superscale-SP_178000_G.pth"
+      ],
+      "shape": 1
+    },
+    {
+      "id": 137,
+      "type": "Note",
+      "pos": [
+        1141.9019402795911,
+        357.11580127787016
+      ],
+      "size": [
+        510,
+        230
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "version": "7.8",
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [
+        "High resolution LoRA\nhttps://civitai.com/models/2436859/high-resolution?modelVersionId=2760799\n\nDetail Enhancer\nhttps://civitai.com/models/2442399/elusarcas-detail-enhancer-or-flux-klein-9b?modelVersionId=2746136\n\nImage Repair\nhttps://civitai.com/models/2432353/image-repair-flux2-klein9b?modelVersionId=2743439\n\nUltimate Upscaler LoRA\nhttps://civitai.com/models/2474084/ultimate-upscaler-klein-9b?modelVersionId=2781657"
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 185,
+      "type": "KleinTiledUpscaler",
+      "pos": [
+        2852.2369749903532,
+        684.8590620487555
+      ],
+      "size": [
+        270,
+        462
+      ],
+      "flags": {},
+      "order": 15,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "guider",
+          "type": "GUIDER",
+          "link": 410
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 411
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 412
+        },
+        {
+          "name": "sampler",
+          "type": "SAMPLER",
+          "link": 413
+        },
+        {
+          "name": "sigmas",
+          "type": "SIGMAS",
+          "link": 415
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 416
+        },
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 417
+        },
+        {
+          "name": "upscale_model",
+          "type": "UPSCALE_MODEL",
+          "link": 414
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            419,
+            420
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KleinTiledUpscaler",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.8"
+        }
+      },
+      "widgets_values": [
+        1234,
+        "fixed",
+        4,
+        "Detail-First",
+        "Auto",
+        1024,
+        1024,
+        128,
+        true,
+        64,
+        false,
+        false
+      ]
+    },
+    {
+      "id": 151,
+      "type": "SaveImage",
+      "pos": [
+        3986.3729750234497,
+        492.8252468612527
+      ],
+      "size": [
+        270,
+        270
+      ],
+      "flags": {},
+      "order": 16,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 419
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "SaveImage",
+        "cnr_id": "comfy-core",
+        "ver": "0.19.3",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.8"
+        }
+      },
+      "widgets_values": [
+        "flux_klein_upscale/test"
+      ]
+    },
+    {
+      "id": 149,
+      "type": "SplitSigmasDenoise",
+      "pos": [
+        2440.4508019725763,
+        1360.3067083502842
+      ],
+      "size": [
+        270,
+        80
+      ],
+      "flags": {},
+      "order": 12,
+      "mode": 4,
+      "inputs": [
+        {
+          "name": "sigmas",
+          "type": "SIGMAS",
+          "link": 264
+        }
+      ],
+      "outputs": [
+        {
+          "name": "high_sigmas",
+          "type": "SIGMAS",
+          "links": []
+        },
+        {
+          "name": "low_sigmas",
+          "type": "SIGMAS",
+          "links": []
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SplitSigmasDenoise",
+        "cnr_id": "comfy-core",
+        "ver": "0.19.3",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.8"
+        }
+      },
+      "widgets_values": [
+        0.5
+      ]
+    },
+    {
+      "id": 187,
+      "type": "Note",
+      "pos": [
+        2454.4905842566045,
+        1485.7957063840918
+      ],
+      "size": [
+        296.01976558479237,
+        105.50576496223107
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "You can use SplitSigmasDenoise to control denoise."
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    },
+    {
+      "id": 116,
+      "type": "Flux2Scheduler",
+      "pos": [
+        2446.9306300827943,
+        1159.8264751524157
+      ],
+      "size": [
+        260,
+        120
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "SIGMAS",
+          "type": "SIGMAS",
+          "links": [
+            264,
+            415
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "Flux2Scheduler",
+        "cnr_id": "comfy-core",
+        "ver": "0.18.1",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.5.2"
+        }
+      },
+      "widgets_values": [
+        4,
+        1536,
+        1534
+      ]
+    },
+    {
+      "id": 188,
+      "type": "Note",
+      "pos": [
+        2162.0025954189796,
+        1114.5842865818404
+      ],
+      "size": [
+        262.1041240802597,
+        157.68329926420756
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "Sizes for Flux2Scheduler might have a big effect. Start with tile dimensions + padding size. I tried experimenting with 2X of 1024 tile size, in some cases it made the image better, in some worse. "
+      ],
+      "color": "#432",
+      "bgcolor": "#653"
+    }
+  ],
+  "links": [
+    [
+      196,
+      122,
+      0,
+      114,
+      0,
+      "CLIP"
+    ],
+    [
+      226,
+      139,
+      0,
+      127,
+      0,
+      "MODEL"
+    ],
+    [
+      264,
+      116,
+      0,
+      149,
+      0,
+      "SIGMAS"
+    ],
+    [
+      305,
+      114,
+      0,
+      113,
+      0,
+      "CONDITIONING"
+    ],
+    [
+      319,
+      113,
+      0,
+      169,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      351,
+      114,
+      0,
+      169,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      358,
+      127,
+      0,
+      169,
+      0,
+      "MODEL"
+    ],
+    [
+      410,
+      169,
+      0,
+      185,
+      0,
+      "GUIDER"
+    ],
+    [
+      411,
+      114,
+      0,
+      185,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      412,
+      113,
+      0,
+      185,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      413,
+      110,
+      0,
+      185,
+      3,
+      "SAMPLER"
+    ],
+    [
+      414,
+      6,
+      0,
+      185,
+      7,
+      "UPSCALE_MODEL"
+    ],
+    [
+      415,
+      116,
+      0,
+      185,
+      4,
+      "SIGMAS"
+    ],
+    [
+      416,
+      119,
+      0,
+      185,
+      5,
+      "VAE"
+    ],
+    [
+      417,
+      1,
+      0,
+      185,
+      6,
+      "IMAGE"
+    ],
+    [
+      419,
+      185,
+      0,
+      151,
+      0,
+      "IMAGE"
+    ],
+    [
+      420,
+      185,
+      0,
+      140,
+      0,
+      "IMAGE"
+    ],
+    [
+      421,
+      1,
+      0,
+      140,
+      1,
+      "IMAGE"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.9229599817706439,
+      "offset": [
+        -794.8870066814495,
+        -206.00212887034604
+      ]
+    },
+    "frontendVersion": "1.42.14",
+    "0246.VERSION": [
+      0,
+      0,
+      4
+    ],
+    "ue_links": [],
+    "links_added_by_ue": [],
+    "VHS_latentpreview": false,
+    "VHS_latentpreviewrate": 0,
+    "VHS_MetadataImage": true,
+    "VHS_KeepIntermediate": true
+  },
+  "version": 0.4
+}
