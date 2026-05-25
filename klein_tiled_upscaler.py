@@ -89,8 +89,8 @@ def expand_and_align_crop(region, width, height, target_w, target_h):
 
 def color_match_tensor(target, source):
     # Strict Linear Color Match: scales mean and standard deviations uniformly
-    t = target.movedim(-1, 1) 
-    s = source.movedim(-1, 1).to(device=t.device, dtype=t.dtype) 
+    t = target.movedim(-1, 1).contiguous() 
+    s = source.movedim(-1, 1).to(device=t.device, dtype=t.dtype).contiguous() 
     
     t_mean = t.mean(dim=(2, 3), keepdim=True)
     t_std = t.std(dim=(2, 3), keepdim=True) + 1e-6
@@ -101,7 +101,7 @@ def color_match_tensor(target, source):
     scale = torch.clamp(s_std / t_std, min=0.1, max=10.0)
     matched = (t - t_mean) * scale + s_mean
     matched = torch.clamp(matched, 0.0, 1.0)
-    return matched.movedim(1, -1)
+    return matched.movedim(1, -1).contiguous()
 
 # -----------------------------------------------------------------------------
 # Advanced Masking
@@ -205,7 +205,7 @@ def crop_latent_for_tile(full_latent, crop_region, divisor):
     rx2 = max(rx1 + 1, rx2)
     ry2 = max(ry1 + 1, ry2)
     
-    raw = full_latent[:, :, ry1:ry2, rx1:rx2]
+    raw = full_latent[:, :, ry1:ry2, rx1:rx2].contiguous()
     enc_w = max(1, (x2 - x1) // divisor)
     enc_h = max(1, (y2 - y1) // divisor)
     
@@ -226,7 +226,7 @@ def crop_noise_for_tile(global_noise, crop_region, divisor):
     rx2 = x2 // divisor
     ry2 = y2 // divisor
 
-    tile_noise = global_noise[:, :, ry1:ry2, rx1:rx2].clone()
+    tile_noise = global_noise[:, :, ry1:ry2, rx1:rx2].clone().contiguous()
 
     enc_w = max(1, (x2 - x1) // divisor)
     enc_h = max(1, (y2 - y1) // divisor)
@@ -302,7 +302,6 @@ class KleinTiledUpscalerNode:
                 "sigmas":        ("SIGMAS",),
                 "vae":           ("VAE",),
                 "image":         ("IMAGE",),
-                "upscale_model": ("UPSCALE_MODEL",),
                 "seed":          ("INT",    {"default": 0, "min": 0, "max": 0xffffffffffffffff}),
                 "scale_factor":  ("FLOAT",  {"default": 2.0, "min": 1.0, "max": 8.0, "step": 0.25}),
                 "tiling_strategy": (cls.TILING_STRATEGIES, {
@@ -341,6 +340,9 @@ class KleinTiledUpscalerNode:
                     "default": False,
                     "tooltip": "Decodes the combined latent canvas in tiles. Crucial to prevent Out-Of-Memory (OOM) errors when outputting extremely high resolutions (8k+)."
                 }),
+            },
+            "optional": {
+                "upscale_model": ("UPSCALE_MODEL",),
             }
         }
 
@@ -348,16 +350,17 @@ class KleinTiledUpscalerNode:
     FUNCTION = "upscale"
     CATEGORY = "sampling/custom_sampling"
 
-    def upscale(self, guider, positive, negative, sampler, sigmas, vae, image, upscale_model,
+    def upscale(self, guider, positive, negative, sampler, sigmas, vae, image,
                 seed, scale_factor, tiling_strategy, tile_size_mode, tile_width, tile_height, padding,
-                color_match, mask_blur, adaptive_tiling, tiled_decode):
-
-        import comfy_extras.nodes_upscale_model as upscale_nodes
+                color_match, mask_blur, adaptive_tiling, tiled_decode, upscale_model=None):
         
         vae_encoder = VAEEncode()
         vae_decoder = VAEDecode()
         vae_decoder_tiled = VAEDecodeTiled()
-        upscaler_node = upscale_nodes.ImageUpscaleWithModel()
+        
+        if upscale_model is not None:
+            import comfy_extras.nodes_upscale_model as upscale_nodes
+            upscaler_node = upscale_nodes.ImageUpscaleWithModel()
         
         batch_size = image.shape[0]
         final_batch_outputs = []
@@ -384,17 +387,21 @@ class KleinTiledUpscalerNode:
             for b in range(batch_size):
                 print(f"[KLEIN] Processing Batch Element {b+1}/{batch_size}")
                 
-                img_b = image[b:b+1] # Ensure dimensionality remains [1, H, W, C]
+                # Apply .clone().contiguous() to ensure Mac/MPS doesn't crash on sliced views
+                img_b = image[b:b+1].clone().contiguous() 
                 b_w, b_h = img_b.shape[2], img_b.shape[1]
                 print(f"[KLEIN] Input: {b_w}x{b_h}")
 
-                upscaled_t = upscaler_node.upscale(upscale_model=upscale_model, image=img_b)[0]
+                if upscale_model is not None:
+                    upscaled_t = upscaler_node.upscale(upscale_model=upscale_model, image=img_b)[0]
+                else:
+                    upscaled_t = img_b.clone()
                 
                 # Snap full canvas to strict multiples of 64
                 target_w = (round(b_w * scale_factor) // 64) * 64
                 target_h = (round(b_h * scale_factor) // 64) * 64
                 
-                upscaled_t = upscaled_t.movedim(-1, 1)
+                upscaled_t = upscaled_t.movedim(-1, 1).contiguous()
                 
                 # Symmetrical Float32 Casting Guard to prevent "bicubic interpolation not supported on Half/Half" errors
                 orig_dtype = upscaled_t.dtype
@@ -403,7 +410,7 @@ class KleinTiledUpscalerNode:
                     size=(target_h, target_w), 
                     mode='bicubic', 
                     antialias=True
-                ).to(orig_dtype).movedim(1, -1)
+                ).to(orig_dtype).movedim(1, -1).contiguous()
 
                 canvas_w, canvas_h = upscaled_t.shape[2], upscaled_t.shape[1]
                 canvas_np = (upscaled_t[0].cpu().numpy() * 255).astype(np.uint8)
@@ -424,7 +431,9 @@ class KleinTiledUpscalerNode:
                 # Dynamically calculate the precise VAE spatial downscaling divisor
                 latent_divisor = max(1, upscaled_t.shape[2] // full_ref_tensor.shape[3])
                 noise_divisor = max(1, upscaled_t.shape[2] // raw_latent.shape[3])
-                mask_divisor = 16 # Retain working baseline for inpaint masks
+                
+                # Dynamic mask divisor prevents 75% un-denoised void bugs on 8x downsampled models
+                mask_divisor = noise_divisor 
                 
                 print(f"[KLEIN] Latent Divisor: {latent_divisor} | Noise Divisor: {noise_divisor}")
 
@@ -456,7 +465,7 @@ class KleinTiledUpscalerNode:
 
                 total = len(tiles_order)
 
-                gray_lr = (img_b[..., 0] * 0.299 + img_b[..., 1] * 0.587 + img_b[..., 2] * 0.114).unsqueeze(1)
+                gray_lr = (img_b[..., 0] * 0.299 + img_b[..., 1] * 0.587 + img_b[..., 2] * 0.114).unsqueeze(1).contiguous()
                 
                 # Dynamic Dtype Precision Guards for both convolution weight kernels to prevent Half/Float mismatches
                 blur_kernel = torch.ones((1, 1, 3, 3), dtype=torch.float32, device=img_b.device) / 9.0
@@ -546,6 +555,8 @@ class KleinTiledUpscalerNode:
                     
                     if dm is not None and hasattr(dm, "forward"):
                         dm_to_restore = dm
+                        # Flux positional embeddings (RoPE) are sequence/token-based.
+                        # Since 1 token = 2x2 latent pixels = 16x16 pixels, RoPE coordinates are shifted by 16px.
                         shift_x = crop_region[0] // 16
                         shift_y = crop_region[1] // 16
                         orig_forward = patch_rope(dm, shift_x, shift_y)
@@ -582,7 +593,7 @@ class KleinTiledUpscalerNode:
                         if decoded.shape[1:3] != orig_tile_crop.shape[1:3]:
                             orig_tile_crop = orig_tile_crop.movedim(-1, 1)
                             orig_tile_crop = F.interpolate(orig_tile_crop, size=(decoded.shape[1], decoded.shape[2]), mode='bilinear', align_corners=False)
-                            orig_tile_crop = orig_tile_crop.movedim(1, -1)
+                            orig_tile_crop = orig_tile_crop.movedim(1, -1).contiguous()
                             
                         matched = color_match_tensor(decoded, orig_tile_crop)
                         decoded = matched * 0.75 + decoded * 0.25
@@ -594,7 +605,7 @@ class KleinTiledUpscalerNode:
                     comfy.model_management.throw_exception_if_processing_interrupted()
 
                 out_np = np.array(canvas).astype(np.float32) / 255.0
-                out_t = torch.from_numpy(out_np).unsqueeze(0)
+                out_t = torch.from_numpy(out_np).unsqueeze(0).contiguous()
 
                 if color_match:
                     out_t = color_match_tensor(out_t, upscaled_t)
