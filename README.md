@@ -32,13 +32,10 @@ Instead of basic pixel variance (which is easily tricked by smooth sky gradients
 ### 4. Symmetrical Crop Sizes
 Even when edge tiles are positioned near boundaries, pass-through parameters force every single crop passed to the VAE Encoder to remain **100% identical in size**. This completely eliminates shape-mismatch artifacts during latent processing.
 
-### 5. Dynamic RoPE Alignment
-Automatically shifts Flux's Rotary Position Embedding (RoPE) coordinates dynamically on the model's forward pass to match each tile's exact coordinate location. 
-
-### 6. Highly VRAM-Friendly Architecture
+### 5. VRAM-Friendly Architecture
 Because this node processes the canvas sequentially tile-by-tile instead of merging massive global attention maps or holding multiple high-resolution noise layers in memory simultaneously, its VRAM footprint remains low. This allows you to generate massive, high-fidelity upscales even on budget GPUs.
 
-### 7. LoRa's support
+### 6. LoRa's support
 All loras for Flux2.Klein should work as expected. Including loras for upscaling, consistency, style.
 
 ---
@@ -56,7 +53,7 @@ All loras for Flux2.Klein should work as expected. Including loras for upscaling
 * **Standard Hi-Res Fix (Latent Upscale):** Upscales the entire latent space at once. While visually coherent, it can causes Out-of-Memory (OOM) crashes on high target resolutions.
 * **Ultimate SD Upscale:** Runs sequential pixel-space blending. It frequently struggles with tile boundaries, grid seams, and completely lacks advanced RoPE alignment essential for Flux2.Klein.
 * **SDXL Tile ControlNet Upscalers:** Relies on a ControlNet Tile model to guide boundaries. ControlNet Tile models do not exist natively or performantly for Flux2.Klein.
-* **SeedVR2 Upscaler:** A powerful, state-of-the-art generative restoration model. While SeedVR2 produces incredible blur removal, it is exceptionally computationally heavy, slow to run, and highly VRAM-intensive. Klein Tiled Upscaler runs exceptionally fast with a fraction of the VRAM usage. But if you want you can use it with this node, just use 1x upscale and connect the image that was upscaled with SeedVR.
+* **SeedVR2 Upscaler:** While SeedVR2 produces incredible blur removal, it is exceptionally computationally heavy, slow to run, and highly VRAM-intensive. Klein Tiled Upscaler runs exceptionally fast with a fraction of the VRAM usage. But if you want you can use it with this node, just use 1x upscale and connect the image that was upscaled with SeedVR.
 
 ---
 
@@ -97,6 +94,8 @@ If you see visible grid lines, tile boxes, or color transitions in your output, 
 3. **Use Detail-First Strategy:** Set your `tiling_strategy` to `Detail-First`. This forces the generator to build sharp foreground structures first, establishing anchor points for skies and walls to blend into later.
 4. **Turn Off/On Adaptive Tiling:** In my test it helps with eliminating some visible difference between tiles. But the sudden shift in steps (e.g. 4 steps vs 2 steps) can occasionally cause minor contrast transitions on difficult images. Turning it `False` forces all tiles to run at uniform step counts, guaranteeing perfect rendering consistency.Also this mode can introduce visible noise that wasn't denoized by the model.
 5. **Consitency loras:** You can use loras for consistency, they will work as expected. But will limit the upscaler strength. Also some upscaler/fix details loras for Flux2.Klein have some consistency capabilities built in, so you can try them. If you do you should probably increase the steps, at 4 steps the effect was very minor. 
+
+**Known bugs**. Sometimes, with a specifically 3x upscale factor, the model begins to heavily hallucinate and lose any context of reference latent. I could not find the exact reason why. Some images work fine, some don't at all. One thing I discovered is that it is happening with the q8 model but doesn't with the INT8 model.
 
 ---
 

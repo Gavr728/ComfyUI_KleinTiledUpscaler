@@ -54,6 +54,10 @@ def get_crop_region(mask, pad=0):
     return x1, y1, x2, y2
 
 def expand_and_align_crop(region, width, height, target_w, target_h):
+    # Ensure target sizes do not exceed canvas dimensions aligned to 32
+    target_w = min(target_w, (width // 32) * 32)
+    target_h = min(target_h, (height // 32) * 32)
+    
     x1, y1, x2, y2 = region
     cx = (x1 + x2) // 2
     cy = (y1 + y2) // 2
@@ -83,6 +87,12 @@ def expand_and_align_crop(region, width, height, target_w, target_h):
     new_y1 = (new_y1 // 32) * 32
     new_x2 = new_x1 + target_w
     new_y2 = new_y1 + target_h
+    
+    # Final safety clamps
+    new_x1 = max(0, new_x1)
+    new_y1 = max(0, new_y1)
+    new_x2 = min(width, new_x2)
+    new_y2 = min(height, new_y2)
     return (new_x1, new_y1, new_x2, new_y2), (target_w, target_h)
 
 def color_match_tensor(target, source):
@@ -179,88 +189,54 @@ def patch_conditioning(cond, ref_crop):
         if isinstance(c, (list, tuple)) and len(c) == 2 and isinstance(c[1], dict):
             new_c = list(c)
             new_c[1] = c[1].copy()
-            if "model_conds" not in new_c[1]:
-                new_c[1]["model_conds"] = {}
-            else:
-                new_c[1]["model_conds"] = new_c[1]["model_conds"].copy()
-            new_c[1]["model_conds"]["ref_latents"] = comfy.conds.CONDList([ref_crop.clone()])
+            # raw VAE-space crop; ComfyUI applies process_latent_in once internally
             new_c[1]["reference_latents"] = [ref_crop.clone()]
+            # spatially-aligned, clean (t=0) reference = strong anti-hallucination anchor
+            new_c[1]["reference_latents_method"] = "index"
             new_cond.append(new_c)
         else:
             new_cond.append(c)
     return new_cond
 
 def crop_latent_for_tile(full_latent, crop_region, canvas_w):
-    divisor = 16 # Flux2/Klein VAE spatial compression token hardcode
     x1, y1, x2, y2 = crop_region
+    latent_h, latent_w = full_latent.shape[2], full_latent.shape[3]
     
-    rx1 = max(0, x1 // divisor)
-    ry1 = max(0, y1 // divisor)
-    rx2 = min(x2 // divisor, full_latent.shape[3])
-    ry2 = min(y2 // divisor, full_latent.shape[2])
+    scale_x = canvas_w / latent_w
+    scale_y = scale_x
+    canvas_h = round(latent_h * scale_x)
+    
+    rx1 = int(round(x1 / canvas_w * latent_w))
+    rx2 = int(round(x2 / canvas_w * latent_w))
+    ry1 = int(round(y1 / canvas_h * latent_h))
+    ry2 = int(round(y2 / canvas_h * latent_h))
+    
+    rx1 = max(0, rx1)
+    ry1 = max(0, ry1)
+    rx2 = min(rx2, latent_w)
+    ry2 = min(ry2, latent_h)
     rx2 = max(rx1 + 1, rx2)
     ry2 = max(ry1 + 1, ry2)
     
     raw = full_latent[:, :, ry1:ry2, rx1:rx2]
-    enc_w = max(1, (x2 - x1) // divisor)
-    enc_h = max(1, (y2 - y1) // divisor)
+    enc_w = max(1, round((x2 - x1) / scale_x))
+    enc_h = max(1, round((y2 - y1) / scale_y))
     
     if raw.shape[2] != enc_h or raw.shape[3] != enc_w:
         raw = F.interpolate(raw.float(), size=(enc_h, enc_w), mode='bilinear', align_corners=False).to(full_latent.dtype)
     return raw.clone()
 
-def crop_noise_for_tile(global_noise, crop_region, canvas_w):
-    divisor = 16
-    x1, y1, x2, y2 = crop_region
-    
-    rx1 = x1 // divisor
-    ry1 = y1 // divisor
-    rx2 = x2 // divisor
-    ry2 = y2 // divisor
+def make_tile_noise(latent_image, seed, tile_index):
+    # fresh white noise at the tile's true latent size, deterministic per tile
+    g = torch.Generator(device="cpu").manual_seed(seed + tile_index)
+    return torch.randn(latent_image.shape, generator=g, dtype=torch.float32).to(latent_image.device)
 
-    tile_noise = global_noise[:, :, ry1:ry2, rx1:rx2].clone()
 
-    enc_w = max(1, (x2 - x1) // divisor)
-    enc_h = max(1, (y2 - y1) // divisor)
-    
-    if tile_noise.shape[2] != enc_h or tile_noise.shape[3] != enc_w:
-        tile_noise = F.interpolate(tile_noise.float(), size=(enc_h, enc_w), mode='bilinear', align_corners=False).to(global_noise.dtype)
-
-    mean = tile_noise.mean()
-    std = tile_noise.std()
-    if std > 1e-6:
-        tile_noise = (tile_noise - mean) / std
-
-    return tile_noise
-
-def patch_rope(diffusion_model, shift_x, shift_y):
-    if shift_x == 0 and shift_y == 0:
-        return None
-    
-    original_forward = diffusion_model.forward
-    
-    def patched_forward(*args, **kwargs):
-        new_args = list(args)
-        if len(new_args) > 1 and isinstance(new_args[1], torch.Tensor) and new_args[1].shape[-1] == 3:
-            img_ids = new_args[1].clone()
-            img_ids[..., 1] += shift_y
-            img_ids[..., 2] += shift_x
-            new_args[1] = img_ids
-        elif "img_ids" in kwargs and kwargs["img_ids"] is not None:
-            img_ids = kwargs["img_ids"].clone()
-            img_ids[..., 1] += shift_y
-            img_ids[..., 2] += shift_x
-            kwargs["img_ids"] = img_ids
-            
-        return original_forward(*new_args, **kwargs)
-        
-    diffusion_model.forward = patched_forward
-    return original_forward
 
 def sample_tile(guider, positive, negative, sampler, sigmas, latent, seed, tile_noise,
-               full_ref_tensor, crop_region, canvas_w):
+               raw_latent, crop_region, canvas_w):
     latent_image = latent["samples"]
-    crop = crop_latent_for_tile(full_ref_tensor, crop_region, canvas_w)
+    crop = crop_latent_for_tile(raw_latent, crop_region, canvas_w)
     patched_pos = patch_conditioning(positive, crop)
     guider.set_conds(positive=patched_pos, negative=negative)
     
@@ -295,15 +271,15 @@ class KleinTiledUpscalerNode:
                 "vae":           ("VAE",),
                 "image":         ("IMAGE",),
                 "seed":          ("INT",    {"default": 0, "min": 0, "max": 0xffffffffffffffff}),
-                "scale_factor":  ("FLOAT",  {"default": 2.0, "min": 1.0, "max": 8.0, "step": 0.25}),
-                "tiling_strategy": (cls.TILING_STRATEGIES, {"default": "Detail-First"}),
-                "tile_size_mode": (["Auto", "Manual"], {"default": "Auto"}),
-                "tile_width":    ("INT",    {"default": 1024, "min": 512, "max": 4096, "step": 16}),
-                "tile_height":   ("INT",    {"default": 1024, "min": 512, "max": 4096, "step": 16}),
+                "scale_factor":  ("FLOAT",  {"default": 2.0, "min": 1.0, "max": 8.0, "step": 0.25,"tooltip": "Upscale ratio applied before tiling refine."}),
+                "tiling_strategy": (cls.TILING_STRATEGIES, {"default": "Detail-First", "tooltip": "Tile sequence order (Detail-First analyzes variance)."}),
+                "tile_size_mode": (["Auto", "Manual"], {"default": "Auto", "tooltip": "Auto divides canvas evenly; Manual allows custom height/width below."}),
+                "tile_width":    ("INT",    {"default": 1024, "min": 512, "max": 4096, "step": 16, "tooltip": "Width of individual tiles when Manual mode is selected."}),
+                "tile_height":   ("INT",    {"default": 1024, "min": 512, "max": 4096, "step": 16, "tooltip": "Height of individual tiles when Manual mode is selected."}),
                 "padding":       ("INT",    {"default": 128, "min": 0, "max": 512, "step": 16}),
-                "color_match":   ("BOOLEAN", {"default": True}),
-                "mask_blur":     ("INT",    {"default": 32, "min": 0, "max": 64, "step": 1}),
-                "adaptive_tiling": ("BOOLEAN", {"default": False}),
+                "color_match":   ("BOOLEAN", {"default": True, "tooltip": "Matches colors dynamically against original image to avoid color drift."}),
+                "mask_blur":     ("INT",    {"default": 32, "min": 0, "max": 64, "step": 1, "tooltip": "Blur radius applied to blend masks to remove seams."}),
+                "adaptive_tiling": ("BOOLEAN", {"default": False, "tooltip": "Dynamically scales down sampling steps on flatter tiles to optimize speed and reduce hallucinations"}),
                 "tiled_decode":  ("BOOLEAN", {"default": False}),
             },
             "optional": {
@@ -340,8 +316,7 @@ class KleinTiledUpscalerNode:
                 callback=callback, disable_pbar=disable_pbar, seed=seed
             )
 
-        dm_to_restore = None
-        orig_forward = None
+
 
         try:
             # Bypass legacy Tiled Diffusion monkeypatch
@@ -376,16 +351,9 @@ class KleinTiledUpscalerNode:
 
                 (upscaled_latent_dict,) = vae_encoder.encode(vae, upscaled_t)
                 raw_latent = upscaled_latent_dict["samples"]
-                model = guider.model_patcher.model
-                
-                if hasattr(model, "process_latent_in"):
-                    full_ref_tensor = model.process_latent_in(raw_latent)
-                else:
-                    full_ref_tensor = raw_latent
 
-                print("[KLEIN] Latent Divisor: 16 | Noise Divisor: 16")
-
-                global_noise = comfy.sample.prepare_noise(raw_latent, seed, None)
+                latent_divisor = round(canvas_w / raw_latent.shape[3])
+                print(f"[KLEIN] Latent Divisor: {latent_divisor}")
 
                 if tile_size_mode == "Auto":
                     cols = max(1, round(canvas_w / 1024))
@@ -498,27 +466,17 @@ class KleinTiledUpscalerNode:
                     l_x2_px = min(canvas_w, core_x2 + latent_expand_size)
                     l_y2_px = min(canvas_h, core_y2 + latent_expand_size)
                     
-                    l_x1_lat = max(0, (l_x1_px - crop_region[0]) // 16)
-                    l_y1_lat = max(0, (l_y1_px - crop_region[1]) // 16)
-                    l_x2_lat = min(tile_w_lat, (l_x2_px - crop_region[0]) // 16)
-                    l_y2_lat = min(tile_h_lat, (l_y2_px - crop_region[1]) // 16)
+                    vae_divisor = max(1, round(tile_pil.width / tile_w_lat))
+                    l_x1_lat = max(0, (l_x1_px - crop_region[0]) // vae_divisor)
+                    l_y1_lat = max(0, (l_y1_px - crop_region[1]) // vae_divisor)
+                    l_x2_lat = min(tile_w_lat, (l_x2_px - crop_region[0]) // vae_divisor)
+                    l_y2_lat = min(tile_h_lat, (l_y2_px - crop_region[1]) // vae_divisor)
                     
                     latent_mask = torch.zeros((1, tile_h_lat, tile_w_lat), dtype=torch.float32, device=latent_image.device)
                     latent_mask[0, l_y1_lat:l_y2_lat, l_x1_lat:l_x2_lat] = 1.0
                     latent["noise_mask"] = latent_mask
 
-                    try:
-                        dm = guider.model_patcher.model.diffusion_model
-                    except AttributeError:
-                        dm = None
-                    
-                    if dm is not None and hasattr(dm, "forward"):
-                        dm_to_restore = dm
-                        shift_x = crop_region[0] // 16
-                        shift_y = crop_region[1] // 16
-                        orig_forward = patch_rope(dm, shift_x, shift_y)
-
-                    tile_noise = crop_noise_for_tile(global_noise, crop_region, canvas_w)
+                    tile_noise = make_tile_noise(latent_image, seed, step_i)
 
                     tile_sigmas = sigmas
                     if adaptive_tiling:
@@ -530,16 +488,15 @@ class KleinTiledUpscalerNode:
                         tile_sigmas = sigmas[-(steps_to_keep_trans + 1):]
                         print(f"[KLEIN] Adaptive denoise factor: {denoise_mult:.2f} (running {steps_to_keep_trans}/{actual_total_steps} steps)")
 
-                    try:
-                        sampled = sample_tile(
-                            guider, positive, negative, sampler, tile_sigmas, latent, seed, tile_noise,
-                            full_ref_tensor, crop_region, canvas_w)
-                    finally:
-                        if orig_forward is not None:
-                            dm_to_restore.forward = orig_forward
-                            dm_to_restore = None
-                            orig_forward = None
+                    sampled = sample_tile(
+                        guider, positive, negative, sampler, tile_sigmas, latent, seed, tile_noise,
+                        raw_latent, crop_region, canvas_w)
 
+                    # right after sample_tile / before decode:
+                    ref_crop = crop_latent_for_tile(raw_latent, crop_region, canvas_w)
+                    tw, th = latent_image.shape[3], latent_image.shape[2]
+                    rw, rh = ref_crop.shape[3], ref_crop.shape[2]
+                    
                     if tiled_decode:
                         (decoded,) = vae_decoder_tiled.decode(vae, sampled, 512)
                     else:
@@ -574,12 +531,6 @@ class KleinTiledUpscalerNode:
 
         finally:
             comfy.samplers.KSampler.sample = current_sample_method
-            
-            if dm_to_restore is not None and orig_forward is not None:
-                try:
-                    dm_to_restore.forward = orig_forward
-                except Exception:
-                    pass
             guider.set_conds(positive=positive, negative=negative)
 
         # Batch preservation guaranteed 
