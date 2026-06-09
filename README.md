@@ -16,7 +16,7 @@ A highly optimized, self-contained, **inpainting-based** tiling upscale node spe
 ---
 
 ## 🤖 Prompting
-This section outlines the ideas for prompt structures and engineering techniques used to achieve the best results with this node.
+This section outlines the ideas for prompt structures.
 
 ### Realistic Images Prompt
 ```text
@@ -29,8 +29,9 @@ upscale illustration, subtle texture, natural surface complexity, coherent struc
 ```
 
 ### Prompting Strategy
-* **💡 Tip 1:** Keep prompts focused on the overall material and details of the scene.
+* **💡 Tip:** Keep prompts focused on the overall material and details of the scene.
 * **⚠️ Avoid:** Complex prompts describing specific objects in one corner to prevent hallucinations in other tiles.
+* **⚠️ Smooth Skin:** Depending  on the prompt it can increase texture on the skin where it's actually supposed to be smooth. 
 
 ---
 
@@ -78,7 +79,7 @@ All loras for Flux2.Klein should work as expected. Including loras for upscaling
 ## 🔄 Comparison With Other Methods
 
 * **Standard Hi-Res Fix (Latent Upscale):** Upscales the entire latent space at once. While visually coherent, it can causes Out-of-Memory (OOM) crashes on high target resolutions.
-* **Ultimate SD Upscale:** Runs sequential pixel-space blending. It frequently struggles with tile boundaries, grid seams, and completely lacks advanced RoPE alignment essential for Flux2.Klein.
+* **Ultimate SD Upscale:** Runs sequential pixel-space blending. It frequently struggles with tile boundaries, grid seams.
 * **SDXL Tile ControlNet Upscalers:** Relies on a ControlNet Tile model to guide boundaries. ControlNet Tile models do not exist natively or performantly for Flux2.Klein.
 * **SeedVR2 Upscaler:** While SeedVR2 produces incredible blur removal, it is exceptionally computationally heavy, slow to run, and highly VRAM-intensive. Klein Tiled Upscaler runs exceptionally fast with a fraction of the VRAM usage. But if you want you can use it with this node, just use 1x upscale and connect the image that was upscaled with SeedVR.
 
@@ -110,8 +111,9 @@ Restart ComfyUI, and the node will be available in the ComfyUI right-click searc
   * Dynamically reduces denoiser steps in low-detail zones (skies/walls) to save render time. Flat skies/walls scale down to 50% steps (2 steps), while detailed zones keep 100% steps (4 steps).
 * **`core_anchor` :**
   * Use it to control "creativity" of upscale. The lower the value the less details get added. I prefer to have it at 1.0 on most images. At 0.85 it is already very subtle.  
-* **`tiled_decode` (True / False):**
-  * Decodes the latent canvas in tiles. Turn this on if you are upscaling to extremely high resolutions (8k+) to prevent GPU VRAM OOM crashes.Might increase color difference between tiles.
+
+
+* **`LATENT output` :** Only ever useful in 2 stage workflow. Don't recommended to use it with `Vae decode/Vae decode tiled` nodes. The node already decodes each tile as the process goes. 
 
 ---
 

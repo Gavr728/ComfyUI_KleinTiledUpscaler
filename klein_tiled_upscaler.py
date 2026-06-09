@@ -254,7 +254,6 @@ class KleinTiledUpscalerNode:
                 "mask_blur":     ("INT",    {"default": 32, "min": 0, "max": 64, "step": 1, "tooltip": "Blur radius applied to blend masks to remove seams."}),
                 "adaptive_tiling": ("BOOLEAN", {"default": False, "tooltip": "Dynamically scales down sampling steps on flatter tiles to optimize speed and reduce hallucinations"}),
                 "core_anchor":   ("FLOAT",  {"default": 1.0, "min": 0.5, "max": 1.0, "step": 0.01, "tooltip": "Lower = keep more original structure in tile core. 1.0 = full regen. 0.85 is subtle, 1.0-0.95 is the sweet spot."}),
-                "tiled_decode":  ("BOOLEAN", {"default": False}),
             },
             "optional": {
                 "upscale_model": ("UPSCALE_MODEL",),
@@ -268,10 +267,11 @@ class KleinTiledUpscalerNode:
 
     def upscale(self, guider, positive, negative, sampler, sigmas, vae, image,
                 seed, scale_factor, tiling_strategy, tile_size_mode, tile_width, tile_height, padding,
-                color_match, mask_blur, adaptive_tiling, core_anchor, tiled_decode, upscale_model=None):
+                color_match, mask_blur, adaptive_tiling, core_anchor, upscale_model=None):
 
         batch_size = image.shape[0]
         final_batch_outputs = []
+        final_batch_latents = []
 
         # Save the original unpatched native KSampler execution method globally
         current_sample_method = comfy.samplers.KSampler.sample
@@ -320,6 +320,9 @@ class KleinTiledUpscalerNode:
                 raw_latent = vae.encode(upscaled_t[:, :, :, :3])
                 latent_divisor = round(canvas_w / raw_latent.shape[3])
                 print(f"[KLEIN] Latent Divisor: {latent_divisor}")
+
+                # Initialize the full canvas latent representation
+                latent_canvas = raw_latent.clone()
 
                 if tile_size_mode == "Auto":
                     cols = max(1, round(canvas_w / 1024))
@@ -456,15 +459,26 @@ class KleinTiledUpscalerNode:
                         guider, positive, negative, sampler, tile_sigmas, latent, seed, tile_noise,
                         raw_latent, crop_region, canvas_w)
 
-                    # Direct VAE API calls for decoding inside the node
-                    if tiled_decode:
-                        compression = vae.spacial_compression_decode()
-                        decode_px = min(512, max(tile_size[0], tile_size[1]))
-                        tile_x = tile_y = max(64, decode_px // compression)
-                        overlap = 64 // compression
-                        decoded = vae.decode_tiled(sampled["samples"], tile_x=tile_x, tile_y=tile_y, overlap=overlap)
-                    else:
-                        decoded = vae.decode(sampled["samples"])
+                    # Composite the sampled latent tile directly back into the full-canvas latent
+                    lh, lw = raw_latent.shape[2], raw_latent.shape[3]
+                    sx = canvas_w / lw
+                    sy = canvas_h / lh
+                    rx1 = int(round(crop_region[0] / sx))
+                    ry1 = int(round(crop_region[1] / sy))
+                    
+                    s = sampled["samples"]
+                    sh, sw = s.shape[2], s.shape[3]
+                    
+                    # Clip boundaries to prevent precision errors
+                    if ry1 + sh > lh:
+                        sh = lh - ry1
+                    if rx1 + sw > lw:
+                        sw = lw - rx1
+                    
+                    latent_canvas[:, :, ry1:ry1+sh, rx1:rx1+sw] = s[:, :, :sh, :sw]
+
+                    # Decode the individual tile using regular vae.decode
+                    decoded = vae.decode(sampled["samples"])
 
                     if color_match:
                         orig_tile_crop = upscaled_t[:, crop_region[1]:crop_region[3], crop_region[0]:crop_region[2], :]
@@ -489,6 +503,7 @@ class KleinTiledUpscalerNode:
                     out_t = color_match_tensor(out_t, upscaled_t)
 
                 final_batch_outputs.append(out_t)
+                final_batch_latents.append(latent_canvas)
                 comfy.model_management.soft_empty_cache()
 
         finally:
@@ -497,9 +512,7 @@ class KleinTiledUpscalerNode:
 
         # Batch preservation guaranteed 
         final_out = torch.cat(final_batch_outputs, dim=0)
-
-        print("[KLEIN] Encoding final upscaled image back to latent space...")
-        final_latent = vae.encode_tiled(final_out[:, :, :, :3], tile_x=512, tile_y=512, overlap=64).detach().cpu()
+        final_latent = torch.cat(final_batch_latents, dim=0).detach().cpu()
         final_latent_dict = {"samples": final_latent}
 
         return (final_out, final_latent_dict)
