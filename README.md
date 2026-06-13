@@ -1,6 +1,6 @@
 # 🚀 Klein Tiled Upscaler for ComfyUI
 
-A highly optimized, self-contained, **inpainting-based** tiling upscale node specifically engineered for **creative upscaling** in **Flux2.Klein** specifically.
+A highly optimized, self-contained, **inpainting-based** tiling upscale and enhancer node specifically engineered for **creative upscaling** with **Flux2.Klein** specifically.
 
 <!-- Быстрая навигация -->
 📊 **[Installation](#-installation)** | 🛠️ **[Parameter Settings](#-parameter-settings-guide)** | 🔍 **[Troubleshooting](#-troubleshooting--visible-seams)**
@@ -10,7 +10,8 @@ A highly optimized, self-contained, **inpainting-based** tiling upscale node spe
 ---
 
 ## 📢 News
-* **07.06.26:** Added optional latent output. Added core_anchor feature. Small improvements and bug fixes. 
+* **13.06.26:** Added new experimental features - `consistent_noise` and `skip_threshold`, would like to hear your feedback, see below for details. Improved seams visibility. Added blending for latent when using latent output. 
+* **07.06.26:** Added optional latent output. Added `core_anchor` feature. Small improvements and bug fixes. 
 * **Initial Release:** Core features deployed including Ground-Truth Laplacian analysis and Adaptive Tiling.
 
 ---
@@ -30,8 +31,9 @@ upscale illustration, subtle texture, natural surface complexity, coherent struc
 
 ### Prompting Strategy
 * **💡 Tip:** Keep prompts focused on the overall material and details of the scene.
-* **⚠️ Avoid:** Complex prompts describing specific objects in one corner to prevent hallucinations in other tiles.
-* **⚠️ Smooth Skin:** Depending  on the prompt it can increase texture on the skin where it's actually supposed to be smooth. 
+* **Avoid:** Complex prompts describing specific objects in one corner to prevent hallucinations in other tiles.
+* **Smooth Skin:** Depending  on the prompt it can increase texture on the skin where it's actually supposed to be smooth. 
+* **Extreme upscale factor:** If pushed too far the model receives too little context to make sense of the tile and how to steer it content.
 
 ---
 
@@ -55,7 +57,7 @@ Symmetrical reference latent extraction, model patching, and structural guidance
 Instead of basic pixel variance (which is easily tricked by smooth sky gradients), this node runs a GPU-accelerated $3\times3$ Laplacian edge convolution over the grayscale representation of your **original low-resolution input image**:
 * **No Bicubic Noise Inflation:** Bypasses the high-frequency ringing and overshoots created by bicubic upscaling.
 * **3x3 Pre-Convolution Blur:** Smooths out microscopic sensor noise and JPEG compression artifacts before analysis. 
-* **The Result:** The node correctly differentiates between flat sky/walls (which drop smoothly to 2 steps) and detailed elements (which run at 4 steps), preventing flat areas from generating unwanted detailed "hallucinations".
+* **The Result:** The node correctly differentiates between flat sky/walls (which drop smoothly to 2 steps) and detailed elements (which run at 4 steps), preventing flat areas from generating unwanted "hallucinations".
 
 ### 4. Symmetrical Crop Sizes
 Even when edge tiles are positioned near boundaries, pass-through parameters force every single crop passed to the VAE Encoder to remain **100% identical in size**. This completely eliminates shape-mismatch artifacts during latent processing.
@@ -70,9 +72,8 @@ All loras for Flux2.Klein should work as expected. Including loras for upscaling
 
 ## 🛑 Limitations & Testing Configuration
 
-* **Prompt Sensitivity:** Highly descriptive or structurally-mismatching prompts can cause stylistic tile drift. Keep prompts focused on the overall material and details of the scene. A basic prompt like `"upscale this image"` works great, whereas a complex prompt describing specific objects in one corner can cause those objects to hallucinate in other tiles.
-* **Development Disclaimer:** For development and debugging reasons, the vast majority of tests and calibrations were made with a basic, fast configuration: **4 steps, Euler sampler, CFG 1.0 (Guidance 1.0), 1024 tile size, and 2x upscale**. 
-* **Beyond Defaults:** If you go outside these values (e.g. running 20+ steps, higher CFG/guidance models, or extreme 8x upscales), you may encounter unexpected rendering behaviors, contrast shifts, or alignment quirks that I have not accounted for.
+* **Prompt Sensitivity:** Highly descriptive or structurally-mismatching prompts can cause stylistic tile drift. Keep prompts focused on the overall material and details of the scene. A basic prompt like `"upscale this image"` works fine, whereas a complex prompt describing specific objects in one corner can cause those objects to hallucinate in other tiles.
+* **Development Disclaimer:** For development and debugging reasons, the vast majority of tests and calibrations were made with a basic, fast configuration: **4 steps, Euler sampler, CFG 1.0 (Guidance 1.0), 1024 tile size, and 2x upscale**. If you go outside these values (e.g. running 20+ steps, higher CFG/guidance models, or extreme upscales), you may encounter unexpected rendering behaviors, contrast shifts, or alignment quirks that I have not accounted for.
 
 ---
 
@@ -81,7 +82,7 @@ All loras for Flux2.Klein should work as expected. Including loras for upscaling
 * **Standard Hi-Res Fix (Latent Upscale):** Upscales the entire latent space at once. While visually coherent, it can causes Out-of-Memory (OOM) crashes on high target resolutions.
 * **Ultimate SD Upscale:** Runs sequential pixel-space blending. It frequently struggles with tile boundaries, grid seams.
 * **SDXL Tile ControlNet Upscalers:** Relies on a ControlNet Tile model to guide boundaries. ControlNet Tile models do not exist natively or performantly for Flux2.Klein.
-* **SeedVR2 Upscaler:** While SeedVR2 produces incredible blur removal, it is exceptionally computationally heavy, slow to run, and highly VRAM-intensive. Klein Tiled Upscaler runs exceptionally fast with a fraction of the VRAM usage. But if you want you can use it with this node, just use 1x upscale and connect the image that was upscaled with SeedVR.
+* **SeedVR2 Upscaler:** While SeedVR2 produces incredible blur removal, it is exceptionally computationally heavy, slow to run, and highly VRAM-intensive. Klein Tiled Upscaler runs fast with moderate VRAM usage. But if you want you can use it with this node, just use 1x upscale and connect the image that was upscaled with SeedVR.
 
 ---
 
@@ -91,7 +92,7 @@ Navigate to your ComfyUI `custom_nodes/` directory and clone this repository:
 
 ```bash
 cd custom_nodes
-git clone https://github.com
+git clone https://github.com/Gavr728/ComfyUI_KleinTiledUpscaler
 ```
 
 Restart ComfyUI, and the node will be available in the ComfyUI right-click search menu as **Klein Tiled Upscaler**.
@@ -106,14 +107,18 @@ Restart ComfyUI, and the node will be available in the ComfyUI right-click searc
 * **`tiling_strategy` (Detail-First / Spiral / Chess / Linear):**
   * `Detail-First`: Analyzes the scene and processes the highly textured tiles first. Flat zones (skies, walls) are processed last, allowing them to anchor cleanly to the finalized, sharp boundaries of the foreground details.
 * **`color_match` (True / False):**
-  * Performs linear histogram matching of each tile against the original upscaled canvas. This should eliminate visible blocky lighting variations, contrast drifts, or color blocks across seams.
+  * Performs linear histogram matching of each tile against the original upscaled canvas. This should eliminate visible blocky lighting variations, contrast drifts, or color blocks across seams. Doesn't replace other color match solutions, you might still want to use them in your pipeline. 
 * **`adaptive_tiling` (True / False):**
   * Dynamically reduces denoiser steps in low-detail zones (skies/walls) to save render time. Flat skies/walls scale down to 50% steps (2 steps), while detailed zones keep 100% steps (4 steps).
+* **`skip_threshold` (True / False):** NEW. Skip tiles with set variance entirely. Which allows denoised tiles to anchor to them as a "ground truth" content. As a consequence also improves speed. Recommended to use with adaptive_tiling on since surrounded tiles will be run with lower denoise, reducing possible difference between tiles. Only works with Detail-First `tiling_strategy`. Values of variance depend on the image, consult with logs if unsure what to set. 
 * **`core_anchor` :**
   * Use it to control "creativity" of upscale. The lower the value the less details get added. I prefer to have it at 1.0 on most images. At 0.85 it is already very subtle.  
+* **`consistent_noise` :**
+  * NEW. Sample all tiles from one shared full-canvas noise field. Greatly improved coherence of lightning, shadows, reflections across given scene. But also tends to be more creative witch can give unwonted effects. Still experimenting with it. The results so far have been hit or miss.   
 
 
-* **`LATENT output` :** Only ever useful in 2 stage workflow. Don't recommended to use it with `Vae decode/Vae decode tiled` nodes. The node already decodes each tile as the process goes. 
+* **`Upscaler model input` :** Optional, runs bicubic without it. 
+* **`LATENT output` :** Only ever useful in 2 stage workflow. Tiles latent get blended with nearby tiles.  Don't recommended to use it with `Vae decode/Vae decode tiled` nodes. The node already decodes each tile as the process goes. 
 
 ---
 
@@ -125,5 +130,6 @@ If you see visible grid lines, tile boxes, or color transitions in your output, 
 3. **Use Detail-First Strategy:** Set your `tiling_strategy` to `Detail-First`. This forces the generator to build sharp foreground structures first, establishing anchor points for skies and walls to blend into later.
 4. **Turn Off/On Adaptive Tiling:** In my test it helps with eliminating some visible difference between tiles. But the sudden shift in steps (e.g. 4 steps vs 2 steps) can occasionally cause minor contrast transitions on difficult images. Turning it `False` forces all tiles to run at uniform step counts, guaranteeing perfect rendering consistency.Also this mode can introduce visible noise that wasn't denoized by the model.
 5. **Consitency loras:** You can use loras for consistency, they will work as expected. But will limit the upscaler strength. Also some upscaler/fix details loras for Flux2.Klein have some consistency capabilities built in, so you can try them. If you do you should probably increase the steps, at 4 steps the effect was very minor.
+6. **core_anchor:** Reduce value until issue is resolved. 
 
 **Known bugs:** Sometimes, with a specifically 3x upscale factor, the model begins to heavily hallucinate and lose any context of reference latent. I could not find the exact reason why. Some images work fine, some don't at all. One thing I discovered is that it is happening with the q8 model but doesn't with the INT8 model.
