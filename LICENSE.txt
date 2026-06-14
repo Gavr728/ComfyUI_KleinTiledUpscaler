@@ -23,7 +23,7 @@ c) Hosting the software on public or private commercial APIs, SaaS platforms,
    cloud platforms, or automated generation servers.
 d) Distributing the software bundled with commercial offerings.
 
-To request commercial licensing or permission, contact: [Your Contact Email / GitHub Link]
+To request commercial licensing or permission, contact: zalesskii.roman@mail.ru
 
 3. ATTRIBUTION
 All copies or substantial portions of the Software, including modified versions, 
