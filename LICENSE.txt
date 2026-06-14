@@ -1,7 +1,7 @@
 KLEIN TILED UPSCALER - NON-COMMERCIAL LICENSE
 Version 1.0.0, May 2026
 
-Copyright (c) 2026, [Your Name / GitHub Username]
+Copyright (c) 2026, [Raman Zalesskii/ Gavr728]
 All rights reserved.
 
 1. GRANT OF LICENSE
